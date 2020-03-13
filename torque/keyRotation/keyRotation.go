@@ -2,34 +2,34 @@ package keyRotation
 
 import (
 	"fmt"
-	"strings"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/sts"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"os/user"
 	"io/ioutil"
+	"os/user"
+	"strings"
 )
 
 type CredDict struct {
-	AccessKey		string 	`json:"accessKey"`
-	SecretKey 		string 	`json:"secretKey"`
-	SessionToken 	string 	`json:"sessionToken"`
+	AccessKey    string `json:"accessKey"`
+	SecretKey    string `json:"secretKey"`
+	SessionToken string `json:"sessionToken"`
 }
 
 func RotateKey(profile string) {
-	fmt.Println("\n[+] Rotating credentials for profile : "+profile+"\n")
+	fmt.Println("\n[+] Rotating credentials for profile : " + profile + "\n")
 	credFileData := map[string]CredDict{}
 	// Getting credential file location
 	cwd := ""
 	user, err := user.Current()
 	if err == nil {
-		cwd = user.HomeDir+"/.aws/credentials"
+		cwd = user.HomeDir + "/.aws/credentials"
 	} else {
 		fmt.Println(err)
 	}
-	
+
 	// Checking if profile even exists
 	credFileData = readCredsFile(cwd)
 	_, ok := credFileData[profile]
@@ -43,7 +43,7 @@ func RotateKey(profile string) {
 	creds := credentials.NewSharedCredentials(cwd, profile)
 	credValue, err := creds.Get()
 	if err != nil {
-		fmt.Println("[-] Cannot load creds for profile : "+profile)
+		fmt.Println("[-] Cannot load creds for profile : " + profile)
 		fmt.Println()
 		fmt.Println(err)
 		fmt.Println()
@@ -60,11 +60,10 @@ func RotateKey(profile string) {
 	} else {
 		keyToDelete = credValue.AccessKeyID
 	}
-		
 
 	// Creating Session
 	mysession, err := session.NewSession(&aws.Config{
-		Region: aws.String("us-east-1"),
+		Region:      aws.String("us-east-1"),
 		Credentials: creds,
 	})
 
@@ -110,34 +109,34 @@ func RotateKey(profile string) {
 		newKey.SessionToken = ""
 	}
 
-	fmt.Println("[-] Deleting old access key : "+keyToDelete)
+	fmt.Println("[-] Deleting old access key : " + keyToDelete)
 
 	// Deleting previous key
 	_, err = iamClient.DeleteAccessKey(&iam.DeleteAccessKeyInput{
-		UserName: aws.String(myuser),
+		UserName:    aws.String(myuser),
 		AccessKeyId: aws.String(keyToDelete),
 	})
 	if err != nil {
-		fmt.Println("[-] Failed to delete : "+keyToDelete)
+		fmt.Println("[-] Failed to delete : " + keyToDelete)
 		fmt.Println()
 		fmt.Println(err)
 		fmt.Println()
 		return
 	} else {
-		fmt.Println("[+] Successfully deleted : "+keyToDelete)
+		fmt.Println("[+] Successfully deleted : " + keyToDelete)
 	}
 	credFileData[profile] = newKey
 	dumpDictToCredFile(cwd, credFileData)
 }
 
-func readCredsFile(cwd string) map[string]CredDict{
+func readCredsFile(cwd string) map[string]CredDict {
 	returnData := map[string]CredDict{}
 
 	// Getting credential file location
-	
+
 	data, err := ioutil.ReadFile(cwd)
 	if err != nil {
-		fmt.Println("[-] Error occurred while reading the file "+cwd)
+		fmt.Println("[-] Error occurred while reading the file " + cwd)
 	} else {
 		rawCreds := strings.Split(string(data), "\n")
 		returnData = convertArrayToMap(rawCreds)
@@ -150,17 +149,17 @@ func dumpDictToCredFile(fileLocation string, dictData map[string]CredDict) {
 	counter := 0
 	for profile, _ := range dictData {
 		if counter == 0 {
-			data = data+"["+string(profile)+"]"
+			data = data + "[" + string(profile) + "]"
 			counter = counter + 1
 		} else {
-			data = data+"\n["+string(profile)+"]"
+			data = data + "\n[" + string(profile) + "]"
 		}
 		keys := CredDict{}
 		keys = dictData[profile]
-		data = data+"\naws_access_key_id = "+keys.AccessKey
-		data = data+"\naws_secret_access_key = "+keys.SecretKey
-		if keys.SessionToken != ""{
-			data = data+"\naws_session_token = "+keys.SessionToken
+		data = data + "\naws_access_key_id = " + keys.AccessKey
+		data = data + "\naws_secret_access_key = " + keys.SecretKey
+		if keys.SessionToken != "" {
+			data = data + "\naws_session_token = " + keys.SessionToken
 		}
 	}
 	d1 := []byte(data)
@@ -169,7 +168,7 @@ func dumpDictToCredFile(fileLocation string, dictData map[string]CredDict) {
 		fmt.Println("[-] Error occurred while writing to file")
 		fmt.Println(error)
 	} else {
-		fmt.Println("[+] Successfully written to file : "+fileLocation)
+		fmt.Println("[+] Successfully written to file : " + fileLocation)
 	}
 }
 
@@ -179,7 +178,7 @@ func convertArrayToMap(data []string) map[string]CredDict {
 	keyData := CredDict{}
 
 	for line := range data {
-		if (strings.Contains(data[line], "[") && strings.Contains(data[line], "]")) {
+		if strings.Contains(data[line], "[") && strings.Contains(data[line], "]") {
 			keyData.AccessKey = ""
 			keyData.SecretKey = ""
 			keyData.SessionToken = ""
@@ -187,16 +186,16 @@ func convertArrayToMap(data []string) map[string]CredDict {
 			profile = data[line]
 			profile = strings.ReplaceAll(profile, "[", "")
 			profile = strings.ReplaceAll(profile, "]", "")
-		} else if (strings.Contains(data[line], "aws_access_key_id = ")) {
+		} else if strings.Contains(data[line], "aws_access_key_id = ") {
 			accessKey := data[line]
 			accessKey = strings.ReplaceAll(accessKey, "aws_access_key_id = ", "")
 			keyData.AccessKey = accessKey
-		} else if (strings.Contains(data[line], "aws_secret_access_key = ")) {
+		} else if strings.Contains(data[line], "aws_secret_access_key = ") {
 			secretKey := data[line]
 			secretKey = strings.ReplaceAll(secretKey, "aws_secret_access_key = ", "")
 			keyData.SecretKey = secretKey
 			returnData[profile] = keyData
-		} else if (strings.Contains(data[line], "aws_session_token = ")) {
+		} else if strings.Contains(data[line], "aws_session_token = ") {
 			sessionToken := data[line]
 			sessionToken = strings.ReplaceAll(sessionToken, "aws_session_token = ", "")
 			keyData.SessionToken = sessionToken
