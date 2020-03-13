@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"fmt"
@@ -14,6 +13,7 @@ import (
 	"strings"
 	"bufio"
 	//"reflect"
+	"torque/keyRotation"
 )
 
 type CredDict struct {
@@ -43,7 +43,7 @@ func main() {
 						fmt.Println("[-] Not rotating profile "+progArgs[2])
 						fmt.Println("[-] Cannot rotate profiles that contain 'mfa-' in their name...")
 					} else {
-						rotateProfile(progArgs[2])
+						keyRotation.RotateKey(progArgs[2])
 					}
 				} else {
 					programHelp(programName)
@@ -135,7 +135,7 @@ func rotateAll() {
 	credFileData := readCredsFile()
 	for profile, _ := range credFileData {
 		if credFileData[profile].SessionToken == "" {
-			rotateProfile(profile)
+			keyRotation.RotateKey(profile)
 		} else {
 			fmt.Println("\n[-] Not rotating "+profile+"\n")
 		}
@@ -212,133 +212,9 @@ func authenticateMFA(profile string) {
 	dumpDictToCredFile(cwd, credFileData)
 }
 
-func rotateProfile(profile string) {
-	fmt.Println("\n[+] Rotating credentials for profile : "+profile+"\n")
-	operationFailure := false
-	credFileData := map[string]CredDict{}
-	// Getting credential file location
-	cwd := getAWSCredentialFileLocation()
-	
-	// Checking if profile even exists
-	credFileData = readCredsFile()
-	_, ok := credFileData[profile]
-	if ok == false {
-		fmt.Println("[-] This profile does not exist in the creds file")
-		operationFailure = true
-	}
-
-	// Setting Credentials
-	if operationFailure == false {
-		creds := credentials.NewSharedCredentials(cwd, profile)
-		credValue, err := creds.Get()
-		if err != nil {
-			fmt.Println("[-] Cannot load creds for profile : "+profile)
-			fmt.Println()
-			fmt.Println(err)
-			fmt.Println()
-			operationFailure = true
-		} else {
-			fmt.Println("[+] Successfully loaded creds")
-		}
-
-		// Delete This Key
-		keyToDelete := ""
-		if strings.Contains(profile, "mfa-") {
-			myKey := credFileData[strings.ReplaceAll(profile, "mfa-", "")]
-			keyToDelete = myKey.AccessKey
-		} else {
-			keyToDelete = credValue.AccessKeyID
-		}
-		
-
-		// Creating Session
-		mysession, err := session.NewSession(&aws.Config{
-			Region: aws.String("us-east-1"),
-			Credentials: creds,
-		})
-
-		// Getting caller identity
-		stsClient := sts.New(mysession)
-		result, err := stsClient.GetCallerIdentity(&sts.GetCallerIdentityInput{})
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		arn := *result.Arn
-		myuser := arn[31:]
-
-		// Creating new access key
-		newKey := CredDict{}
-
-		// Creating IAM client
-		iamClient := iam.New(mysession)
-
-		// Creating new access key
-		resultIam, err := iamClient.CreateAccessKey(&iam.CreateAccessKeyInput{
-			UserName: aws.String(myuser),
-		})
-		if err != nil {
-			fmt.Println("[-] Failed in creating new access key")
-			fmt.Println()
-			if strings.Contains(err.Error(), "explicit deny\n	status code: 403") {
-				fmt.Print("[-] It appears you have an explicit deny for this operations\n[?] Does "+profile+" require MFA authentication(y/n) : ")
-				reader := bufio.NewReader(os.Stdin)
-				option, _ := reader.ReadString('\n')
-				if strings.ReplaceAll(option, "\n", "") == "y" {
-					rotateWithMFA(profile, cwd)
-					return
-				} else {
-					fmt.Println("[-] Exiting...")
-					return
-				}
-			} else if strings.Contains(err.Error(), "LimitExceeded: Cannot exceed quota for AccessKeysPerUser: 2") {
-				fmt.Println("[-] It appears you have 2 access keys...")
-				fmt.Println("[-] This program will not work for 2 access keys...")
-				fmt.Println("[-] Please contact the security team and they will be happy to help you out :)\n")
-				return
-			} else {
-				fmt.Println(err)
-				return
-			}
-			fmt.Println()
-			operationFailure = true
-		} else {
-			fmt.Println("[+] Successfully created new access key")
-			//fmt.Println(*resultIam.AccessKey)
-			keyDetails := *resultIam.AccessKey
-			newKey.AccessKey = *keyDetails.AccessKeyId
-			newKey.SecretKey = *keyDetails.SecretAccessKey
-			newKey.SessionToken = ""
-		}
-
-		fmt.Println("[-] Deleting old access key : "+keyToDelete)
-
-		// Deleting previous key
-		_, err = iamClient.DeleteAccessKey(&iam.DeleteAccessKeyInput{
-			UserName: aws.String(myuser),
-			AccessKeyId: aws.String(keyToDelete),
-		})
-		if err != nil {
-			fmt.Println("[-] Failed to delete : "+keyToDelete)
-			fmt.Println()
-			fmt.Println(err)
-			fmt.Println()
-			operationFailure = true
-		} else {
-			fmt.Println("[+] Successfully deleted : "+keyToDelete)
-		}
-		if operationFailure == true {
-			fmt.Println("\n[-] Operation failed exiting...\n")
-		} else {
-			credFileData[profile] = newKey
-			dumpDictToCredFile(cwd, credFileData)
-		}
-	}
-}
-
 func rotateWithMFA(profile string, cwd string) {
 	authenticateMFA(profile)
-	rotateProfile("mfa-"+profile)
+	keyRotation.RotateKey("mfa-"+profile)
 	credData := readCredsFile()
 	delete(credData, profile)
 	credData[profile] = credData["mfa-"+profile]
