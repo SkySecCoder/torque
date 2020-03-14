@@ -7,7 +7,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
-	"io/ioutil"
 	"os"
 	"os/user"
 	"strings"
@@ -35,7 +34,7 @@ func AuthMFA(profile string) {
 	}
 
 	// Checking if profile even exists
-	credFileData = readCredsFile(cwd)
+	credFileData = helpers.ReadCredsFile(cwd)
 	_, ok := credFileData[profile]
 	if ok == false {
 		fmt.Println("[-] This profile does not exist in the creds file")
@@ -91,52 +90,4 @@ func AuthMFA(profile string) {
 	newKey.SessionToken = *response.Credentials.SessionToken
 	credFileData["mfa-"+profile] = newKey
 	helpers.DumpDictToCredFile(cwd, credFileData)
-}
-
-func readCredsFile(cwd string) map[string]CredDict {
-	returnData := map[string]CredDict{}
-
-	// Getting credential file location
-
-	data, err := ioutil.ReadFile(cwd)
-	if err != nil {
-		fmt.Println("[-] Error occurred while reading the file " + cwd)
-	} else {
-		rawCreds := strings.Split(string(data), "\n")
-		returnData = convertArrayToMap(rawCreds)
-	}
-	return returnData
-}
-
-func convertArrayToMap(data []string) map[string]CredDict {
-	returnData := map[string]CredDict{}
-	profile := ""
-	keyData := CredDict{}
-
-	for line := range data {
-		if strings.Contains(data[line], "[") && strings.Contains(data[line], "]") {
-			keyData.AccessKey = ""
-			keyData.SecretKey = ""
-			keyData.SessionToken = ""
-
-			profile = data[line]
-			profile = strings.ReplaceAll(profile, "[", "")
-			profile = strings.ReplaceAll(profile, "]", "")
-		} else if strings.Contains(data[line], "aws_access_key_id = ") {
-			accessKey := data[line]
-			accessKey = strings.ReplaceAll(accessKey, "aws_access_key_id = ", "")
-			keyData.AccessKey = accessKey
-		} else if strings.Contains(data[line], "aws_secret_access_key = ") {
-			secretKey := data[line]
-			secretKey = strings.ReplaceAll(secretKey, "aws_secret_access_key = ", "")
-			keyData.SecretKey = secretKey
-			returnData[profile] = keyData
-		} else if strings.Contains(data[line], "aws_session_token = ") {
-			sessionToken := data[line]
-			sessionToken = strings.ReplaceAll(sessionToken, "aws_session_token = ", "")
-			keyData.SessionToken = sessionToken
-			returnData[profile] = keyData
-		}
-	}
-	return returnData
 }
