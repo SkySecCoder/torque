@@ -1,18 +1,16 @@
-package keyRotation
+package authMFA
 
 import (
 	"fmt"
+	"bufio"
+	"os"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/sts"
-	"io/ioutil"
-	"os/user"
 	"strings"
-	"os"
-	"bufio"
-	"torque/authMFA"
+	"os/user"
+	"io/ioutil"
 )
 
 type CredDict struct {
@@ -21,8 +19,13 @@ type CredDict struct {
 	SessionToken string `json:"sessionToken"`
 }
 
-func RotateKey(profile string) {
-	fmt.Println("\n[+] Rotating credentials for profile : " + profile + "\n")
+func AuthMFA(profile string) {
+	// Asking user for their MFA Token
+	fmt.Print("\n[+] Please enter you MFA token code : ")
+	reader := bufio.NewReader(os.Stdin)
+	mfaToken, _ := reader.ReadString('\n')
+	//fmt.Println(mfaToken)
+
 	credFileData := map[string]CredDict{}
 	// Getting credential file location
 	cwd := ""
@@ -41,27 +44,15 @@ func RotateKey(profile string) {
 		return
 	}
 
-	// Setting Credentials
-	//Delete this if operationFailure == false {
 	creds := credentials.NewSharedCredentials(cwd, profile)
-	credValue, err := creds.Get()
+	_, err = creds.Get()
 	if err != nil {
 		fmt.Println("[-] Cannot load creds for profile : " + profile)
 		fmt.Println()
 		fmt.Println(err)
 		fmt.Println()
-		return
 	} else {
 		fmt.Println("[+] Successfully loaded creds")
-	}
-
-	// Delete This Key
-	keyToDelete := ""
-	if strings.Contains(profile, "mfa-") {
-		myKey := credFileData[strings.ReplaceAll(profile, "mfa-", "")]
-		keyToDelete = myKey.AccessKey
-	} else {
-		keyToDelete = credValue.AccessKeyID
 	}
 
 	// Creating Session
@@ -79,67 +70,28 @@ func RotateKey(profile string) {
 
 	arn := *result.Arn
 	myuser := arn[31:]
+	requiredArn := arn[:26]
+	//fmt.Println(arn)
+	//fmt.Println(myuser)
+	//fmt.Println(arn[:26])
 
-	// Creating new access key
-	newKey := CredDict{}
-
-	// Creating IAM client
-	iamClient := iam.New(mysession)
-
-	// Creating new access key
-	resultIam, err := iamClient.CreateAccessKey(&iam.CreateAccessKeyInput{
-		UserName: aws.String(myuser),
+	// Getting token using MFA
+	response, err := stsClient.GetSessionToken(&sts.GetSessionTokenInput{
+		DurationSeconds: aws.Int64(3600),
+		SerialNumber:    aws.String(requiredArn + "mfa/" + myuser),
+		TokenCode:       aws.String(strings.ReplaceAll(mfaToken, "\n", "")),
 	})
 	if err != nil {
-		fmt.Println("[-] Failed in creating new access key")
-		fmt.Println()
-		if strings.Contains(err.Error(), "explicit deny\n	status code: 403") {
-			fmt.Print("[-] It appears you have an explicit deny for this operations\n[?] Does "+profile+" require MFA authentication(y/n) : ")
-			reader := bufio.NewReader(os.Stdin)
-			option, _ := reader.ReadString('\n')
-			if strings.ReplaceAll(option, "\n", "") == "y" {
-				rotateWithMFA(profile, cwd)
-				return
-			} else {
-				fmt.Println("[-] Exiting...")
-				return
-			}
-		} else if strings.Contains(err.Error(), "LimitExceeded: Cannot exceed quota for AccessKeysPerUser: 2") {
-			fmt.Println("[-] It appears you have 2 access keys...")
-			fmt.Println("[-] This program will not work for 2 access keys...")
-			return
-		} else {
-			fmt.Println(err)
-			return
-		}
-		fmt.Println()
-		return
-	} else {
-		fmt.Println("[+] Successfully created new access key")
-		//fmt.Println(*resultIam.AccessKey)
-		keyDetails := *resultIam.AccessKey
-		newKey.AccessKey = *keyDetails.AccessKeyId
-		newKey.SecretKey = *keyDetails.SecretAccessKey
-		newKey.SessionToken = ""
-	}
-
-	fmt.Println("[-] Deleting old access key : " + keyToDelete)
-
-	// Deleting previous key
-	_, err = iamClient.DeleteAccessKey(&iam.DeleteAccessKeyInput{
-		UserName:    aws.String(myuser),
-		AccessKeyId: aws.String(keyToDelete),
-	})
-	if err != nil {
-		fmt.Println("[-] Failed to delete : " + keyToDelete)
-		fmt.Println()
 		fmt.Println(err)
-		fmt.Println()
 		return
 	} else {
-		fmt.Println("[+] Successfully deleted : " + keyToDelete)
+		fmt.Println("[+] Successfully authenticated MFA")
 	}
-	credFileData[profile] = newKey
+	newKey := CredDict{}
+	newKey.AccessKey = *response.Credentials.AccessKeyId
+	newKey.SecretKey = *response.Credentials.SecretAccessKey
+	newKey.SessionToken = *response.Credentials.SessionToken
+	credFileData["mfa-"+profile] = newKey
 	dumpDictToCredFile(cwd, credFileData)
 }
 
@@ -186,23 +138,6 @@ func dumpDictToCredFile(fileLocation string, dictData map[string]CredDict) {
 	}
 }
 
-func rotateWithMFA(profile string, cwd string) {
-	authMFA.AuthMFA(profile)
-	RotateKey("mfa-" + profile)
-	credData := readCredsFile(cwd)
-	delete(credData, profile)
-	credData[profile] = credData["mfa-"+profile]
-
-	key := credData[profile]
-	key.SessionToken = ""
-	credData[profile] = key
-
-	fmt.Println("[+] Deleting profile : mfa-" + profile)
-	delete(credData, "mfa-"+profile)
-	fmt.Println("\n[+] Successfully rotated MFA creds for : " + profile + "\n")
-	dumpDictToCredFile(cwd, credData)
-}
-
 func convertArrayToMap(data []string) map[string]CredDict {
 	returnData := map[string]CredDict{}
 	profile := ""
@@ -235,3 +170,5 @@ func convertArrayToMap(data []string) map[string]CredDict {
 	}
 	return returnData
 }
+
+
