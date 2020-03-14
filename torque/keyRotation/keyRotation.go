@@ -1,6 +1,7 @@
 package keyRotation
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -8,18 +9,15 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"io/ioutil"
+	"os"
 	"os/user"
 	"strings"
-	"os"
-	"bufio"
 	"torque/authMFA"
+	"torque/customTypes"
+	"torque/helpers"
 )
 
-type CredDict struct {
-	AccessKey    string `json:"accessKey"`
-	SecretKey    string `json:"secretKey"`
-	SessionToken string `json:"sessionToken"`
-}
+type CredDict = customTypes.CredDict
 
 func RotateKey(profile string) {
 	fmt.Println("\n[+] Rotating credentials for profile : " + profile + "\n")
@@ -94,7 +92,7 @@ func RotateKey(profile string) {
 		fmt.Println("[-] Failed in creating new access key")
 		fmt.Println()
 		if strings.Contains(err.Error(), "explicit deny\n	status code: 403") {
-			fmt.Print("[-] It appears you have an explicit deny for this operations\n[?] Does "+profile+" require MFA authentication(y/n) : ")
+			fmt.Print("[-] It appears you have an explicit deny for this operations\n[?] Does " + profile + " require MFA authentication(y/n) : ")
 			reader := bufio.NewReader(os.Stdin)
 			option, _ := reader.ReadString('\n')
 			if strings.ReplaceAll(option, "\n", "") == "y" {
@@ -140,7 +138,7 @@ func RotateKey(profile string) {
 		fmt.Println("[+] Successfully deleted : " + keyToDelete)
 	}
 	credFileData[profile] = newKey
-	dumpDictToCredFile(cwd, credFileData)
+	helpers.DumpDictToCredFile(cwd, credFileData)
 }
 
 func readCredsFile(cwd string) map[string]CredDict {
@@ -158,34 +156,6 @@ func readCredsFile(cwd string) map[string]CredDict {
 	return returnData
 }
 
-func dumpDictToCredFile(fileLocation string, dictData map[string]CredDict) {
-	data := ""
-	counter := 0
-	for profile, _ := range dictData {
-		if counter == 0 {
-			data = data + "[" + string(profile) + "]"
-			counter = counter + 1
-		} else {
-			data = data + "\n[" + string(profile) + "]"
-		}
-		keys := CredDict{}
-		keys = dictData[profile]
-		data = data + "\naws_access_key_id = " + keys.AccessKey
-		data = data + "\naws_secret_access_key = " + keys.SecretKey
-		if keys.SessionToken != "" {
-			data = data + "\naws_session_token = " + keys.SessionToken
-		}
-	}
-	d1 := []byte(data)
-	error := ioutil.WriteFile(fileLocation, d1, 0644)
-	if error != nil {
-		fmt.Println("[-] Error occurred while writing to file")
-		fmt.Println(error)
-	} else {
-		fmt.Println("[+] Successfully written to file : " + fileLocation)
-	}
-}
-
 func rotateWithMFA(profile string, cwd string) {
 	authMFA.AuthMFA(profile)
 	RotateKey("mfa-" + profile)
@@ -200,7 +170,7 @@ func rotateWithMFA(profile string, cwd string) {
 	fmt.Println("[+] Deleting profile : mfa-" + profile)
 	delete(credData, "mfa-"+profile)
 	fmt.Println("\n[+] Successfully rotated MFA creds for : " + profile + "\n")
-	dumpDictToCredFile(cwd, credData)
+	helpers.DumpDictToCredFile(cwd, credData)
 }
 
 func convertArrayToMap(data []string) map[string]CredDict {
