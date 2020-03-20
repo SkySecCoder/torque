@@ -1,9 +1,9 @@
 package helpers
 
 import (
+	"fmt"
 	"io/ioutil"
 	"strings"
-	"fmt"
 )
 
 func ReadCredsFile(cwd string) map[string]CredDict {

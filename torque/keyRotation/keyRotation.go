@@ -140,8 +140,6 @@ func RotateKey(profile string) {
 	helpers.DumpDictToCredFile(cwd, credFileData)
 }
 
-
-
 func rotateWithMFA(profile string, cwd string) {
 	authMFA.AuthMFA(profile)
 	RotateKey("mfa-" + profile)
@@ -158,5 +156,3 @@ func rotateWithMFA(profile string, cwd string) {
 	fmt.Println("\n[+] Successfully rotated MFA creds for : " + profile + "\n")
 	helpers.DumpDictToCredFile(cwd, credData)
 }
-
-

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"torque/authMFA"
 	"torque/customTypes"
-	"torque/keyRotation"
 	"torque/helpers"
+	"torque/keyRotation"
 )
 
 type CredDict = customTypes.CredDict
