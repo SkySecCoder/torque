@@ -19,6 +19,14 @@ import (
 type CredDict = customTypes.CredDict
 
 func RotateKey(profile string) {
+	if profile == "all" {
+		rotateAll()
+	} else {
+		rotateProfile(profile)
+	}
+}
+
+func rotateProfile(profile string) {
 	fmt.Println("\n[+] Rotating credentials for profile : " + profile + "\n")
 	credFileData := map[string]CredDict{}
 	// Getting credential file location
@@ -155,4 +163,16 @@ func rotateWithMFA(profile string, cwd string) {
 	delete(credData, "mfa-"+profile)
 	fmt.Println("\n[+] Successfully rotated MFA creds for : " + profile + "\n")
 	helpers.DumpDictToCredFile(cwd, credData)
+}
+
+func rotateAll() {
+	cwd := helpers.GetAWSCredentialFileLocation()
+	credFileData := helpers.ReadCredsFile(cwd)
+	for profile, _ := range credFileData {
+		if credFileData[profile].SessionToken == "" {
+			rotateProfile(profile)
+		} else {
+			fmt.Println("\n[-] Not rotating " + profile + "\n")
+		}
+	}
 }

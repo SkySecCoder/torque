@@ -32,7 +32,7 @@ func AuthMFA(profile string) {
 	}
 
 	// Asking user for their MFA Token
-	fmt.Print("\n[+] Please enter you MFA token code : ")
+	fmt.Print("[+] Please enter you MFA token code : ")
 	reader := bufio.NewReader(os.Stdin)
 	mfaToken, _ := reader.ReadString('\n')
 	//fmt.Println(mfaToken)
@@ -54,8 +54,6 @@ func AuthMFA(profile string) {
 		fmt.Println()
 		fmt.Println(err)
 		fmt.Println()
-	} else {
-		fmt.Println("[+] Successfully loaded creds")
 	}
 
 	// Creating Session
@@ -80,20 +78,16 @@ func AuthMFA(profile string) {
 
 	// Getting token using MFA
 	response, err := stsClient.GetSessionToken(&sts.GetSessionTokenInput{
-		DurationSeconds: aws.Int64(3600),
+		DurationSeconds: aws.Int64(43200),
 		SerialNumber:    aws.String(requiredArn + "mfa/" + myuser),
 		TokenCode:       aws.String(strings.ReplaceAll(mfaToken, "\n", "")),
 	})
 	if err != nil {
 		fmt.Println(err)
 		return
-	} else {
-		fmt.Println("[+] Successfully authenticated MFA")
 	}
-	newKey := CredDict{}
-	newKey.AccessKey = *response.Credentials.AccessKeyId
-	newKey.SecretKey = *response.Credentials.SecretAccessKey
-	newKey.SessionToken = *response.Credentials.SessionToken
-	credFileData["mfa-"+profile] = newKey
-	helpers.DumpDictToCredFile(cwd, credFileData)
+	
+	fmt.Println("export AWS_ACCESS_KEY_ID="+*response.Credentials.AccessKeyId)
+	fmt.Println("export AWS_SECRET_ACCESS_KEY="+*response.Credentials.SecretAccessKey)
+	fmt.Println("export AWS_SESSION_TOKEN="+*response.Credentials.SessionToken)
 }
