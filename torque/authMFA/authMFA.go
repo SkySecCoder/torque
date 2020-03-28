@@ -8,15 +8,29 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"os"
-	"os/user"
+	//"os/user"
 	"strings"
 	"torque/customTypes"
 	"torque/helpers"
+	//"torque/programHelp"
 )
 
 type CredDict = customTypes.CredDict
 
 func AuthMFA(profile string) {
+	cwd := helpers.GetAWSCredentialFileLocation()
+	exists, error := helpers.DoesFileExist(cwd)
+
+	if error != nil {
+		fmt.Println(error)
+		return
+	}
+
+	if exists != true {
+		fmt.Println("[-] Unable to find creds file at : " + cwd)
+		return
+	}
+
 	// Asking user for their MFA Token
 	fmt.Print("\n[+] Please enter you MFA token code : ")
 	reader := bufio.NewReader(os.Stdin)
@@ -24,14 +38,6 @@ func AuthMFA(profile string) {
 	//fmt.Println(mfaToken)
 
 	credFileData := map[string]CredDict{}
-	// Getting credential file location
-	cwd := ""
-	user, err := user.Current()
-	if err == nil {
-		cwd = user.HomeDir + "/.aws/credentials"
-	} else {
-		fmt.Println(err)
-	}
 
 	// Checking if profile even exists
 	credFileData = helpers.ReadCredsFile(cwd)
@@ -42,7 +48,7 @@ func AuthMFA(profile string) {
 	}
 
 	creds := credentials.NewSharedCredentials(cwd, profile)
-	_, err = creds.Get()
+	_, err := creds.Get()
 	if err != nil {
 		fmt.Println("[-] Cannot load creds for profile : " + profile)
 		fmt.Println()
