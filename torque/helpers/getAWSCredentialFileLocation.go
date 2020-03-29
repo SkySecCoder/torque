@@ -1,8 +1,8 @@
 package helpers
 
 import (
-	"os/user"
 	"fmt"
+	"os/user"
 )
 
 func GetAWSCredentialFileLocation() string {

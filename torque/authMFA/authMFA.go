@@ -8,7 +8,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"os"
-	//"os/user"
 	"strings"
 	"torque/customTypes"
 	"torque/helpers"
@@ -20,9 +19,9 @@ func AuthMFA(profile string, mode string) {
 	credsNotExpired, cacheCreds := helpers.CheckCache(profile)
 	if credsNotExpired {
 		if mode != "silent" {
-			fmt.Println("export AWS_ACCESS_KEY_ID="+cacheCreds.AccessKey)
-			fmt.Println("export AWS_SECRET_ACCESS_KEY="+cacheCreds.SecretKey)
-			fmt.Println("export AWS_SESSION_TOKEN="+cacheCreds.SessionToken)
+			fmt.Println("export AWS_ACCESS_KEY_ID=" + cacheCreds.AccessKey)
+			fmt.Println("export AWS_SECRET_ACCESS_KEY=" + cacheCreds.SecretKey)
+			fmt.Println("export AWS_SESSION_TOKEN=" + cacheCreds.SessionToken)
 		}
 		return
 	}
@@ -92,10 +91,10 @@ func AuthMFA(profile string, mode string) {
 		return
 	}
 	dumpCache(profile, response)
-	
+
 	if mode != "silent" {
-		fmt.Println("export AWS_ACCESS_KEY_ID="+*response.Credentials.AccessKeyId)
-		fmt.Println("export AWS_SECRET_ACCESS_KEY="+*response.Credentials.SecretAccessKey)
-		fmt.Println("export AWS_SESSION_TOKEN="+*response.Credentials.SessionToken)
+		fmt.Println("export AWS_ACCESS_KEY_ID=" + *response.Credentials.AccessKeyId)
+		fmt.Println("export AWS_SECRET_ACCESS_KEY=" + *response.Credentials.SecretAccessKey)
+		fmt.Println("export AWS_SESSION_TOKEN=" + *response.Credentials.SessionToken)
 	}
 }

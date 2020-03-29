@@ -110,7 +110,7 @@ func rotateProfile(profile string) {
 			fmt.Println(err)
 			return
 		}
-	} 
+	}
 
 	fmt.Println("[+] Successfully created new access key")
 	//fmt.Println(*resultIam.AccessKey)

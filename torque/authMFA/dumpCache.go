@@ -1,13 +1,13 @@
 package authMFA
 
 import (
-	"io/ioutil"
-	"os/user"
-	"fmt"
-	"torque/helpers"
-	"os"
 	"encoding/json"
+	"fmt"
 	"github.com/aws/aws-sdk-go/service/sts"
+	"io/ioutil"
+	"os"
+	"os/user"
+	"torque/helpers"
 )
 
 func dumpCache(profile string, credentials *sts.GetSessionTokenOutput) {
@@ -20,8 +20,8 @@ func dumpCache(profile string, credentials *sts.GetSessionTokenOutput) {
 		return
 	}
 
-	cachePath := homedir+"/.torque/cache/"
-	if exist,_ := helpers.DoesFileExist(cachePath); exist == false {
+	cachePath := homedir + "/.torque/cache/"
+	if exist, _ := helpers.DoesFileExist(cachePath); exist == false {
 		err = os.MkdirAll(cachePath, os.ModePerm)
 		if err != nil {
 			fmt.Println(err)
@@ -29,7 +29,7 @@ func dumpCache(profile string, credentials *sts.GetSessionTokenOutput) {
 		}
 	}
 
-	rawData,_ := json.MarshalIndent(credentials, "", "    ")
+	rawData, _ := json.MarshalIndent(credentials, "", "    ")
 
 	err = ioutil.WriteFile(cachePath+profile+"-credentials.json", []byte(rawData), 0644)
 	if err != nil {
