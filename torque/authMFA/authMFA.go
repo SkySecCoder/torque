@@ -12,12 +12,20 @@ import (
 	"strings"
 	"torque/customTypes"
 	"torque/helpers"
-	//"torque/programHelp"
 )
 
 type CredDict = customTypes.CredDict
 
-func AuthMFA(profile string) {
+func AuthMFA(profile string, mode string) {
+	credsNotExpired, cacheCreds := helpers.CheckCache(profile)
+	if credsNotExpired {
+		if mode != "silent" {
+			fmt.Println("export AWS_ACCESS_KEY_ID="+cacheCreds.AccessKey)
+			fmt.Println("export AWS_SECRET_ACCESS_KEY="+cacheCreds.SecretKey)
+			fmt.Println("export AWS_SESSION_TOKEN="+cacheCreds.SessionToken)
+		}
+		return
+	}
 	cwd := helpers.GetAWSCredentialFileLocation()
 	exists, error := helpers.DoesFileExist(cwd)
 
@@ -72,9 +80,6 @@ func AuthMFA(profile string) {
 	arn := *result.Arn
 	myuser := arn[31:]
 	requiredArn := arn[:26]
-	//fmt.Println(arn)
-	//fmt.Println(myuser)
-	//fmt.Println(arn[:26])
 
 	// Getting token using MFA
 	response, err := stsClient.GetSessionToken(&sts.GetSessionTokenInput{
@@ -86,8 +91,11 @@ func AuthMFA(profile string) {
 		fmt.Println(err)
 		return
 	}
+	dumpCache(profile, response)
 	
-	fmt.Println("export AWS_ACCESS_KEY_ID="+*response.Credentials.AccessKeyId)
-	fmt.Println("export AWS_SECRET_ACCESS_KEY="+*response.Credentials.SecretAccessKey)
-	fmt.Println("export AWS_SESSION_TOKEN="+*response.Credentials.SessionToken)
+	if mode != "silent" {
+		fmt.Println("export AWS_ACCESS_KEY_ID="+*response.Credentials.AccessKeyId)
+		fmt.Println("export AWS_SECRET_ACCESS_KEY="+*response.Credentials.SecretAccessKey)
+		fmt.Println("export AWS_SESSION_TOKEN="+*response.Credentials.SessionToken)
+	}
 }

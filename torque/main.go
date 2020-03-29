@@ -19,7 +19,7 @@ func main() {
 	if len(os.Args) == 1 || os.Args[1] == "help" || os.Args[1] == "-h" {
 		programHelp.ProgramHelp(programName)
 	} else if os.Args[1] == "auth" && len(os.Args) == 3 {
-		authMFA.AuthMFA(progArgs[2])
+		authMFA.AuthMFA(progArgs[2], "")
 	} else if os.Args[1] == "rotate" && len(os.Args) == 3 {
 		keyRotation.RotateKey(progArgs[2])
 	} else {

@@ -61,13 +61,7 @@ func rotateProfile(profile string) {
 	}
 
 	// Delete This Key
-	keyToDelete := ""
-	if strings.Contains(profile, "mfa-") {
-		myKey := credFileData[strings.ReplaceAll(profile, "mfa-", "")]
-		keyToDelete = myKey.AccessKey
-	} else {
-		keyToDelete = credValue.AccessKeyID
-	}
+	keyToDelete := credValue.AccessKeyID
 
 	// Creating Session
 	mysession, err := session.NewSession(&aws.Config{
@@ -103,8 +97,7 @@ func rotateProfile(profile string) {
 			reader := bufio.NewReader(os.Stdin)
 			option, _ := reader.ReadString('\n')
 			if strings.ReplaceAll(option, "\n", "") == "y" {
-				rotateWithMFA(profile, cwd)
-				return
+				resultIam, iamClient = rotateWithMFA(profile, cwd)
 			} else {
 				fmt.Println("[-] Exiting...")
 				return
@@ -117,16 +110,14 @@ func rotateProfile(profile string) {
 			fmt.Println(err)
 			return
 		}
-		fmt.Println()
-		return
-	} else {
-		fmt.Println("[+] Successfully created new access key")
-		//fmt.Println(*resultIam.AccessKey)
-		keyDetails := *resultIam.AccessKey
-		newKey.AccessKey = *keyDetails.AccessKeyId
-		newKey.SecretKey = *keyDetails.SecretAccessKey
-		newKey.SessionToken = ""
-	}
+	} 
+
+	fmt.Println("[+] Successfully created new access key")
+	//fmt.Println(*resultIam.AccessKey)
+	keyDetails := *resultIam.AccessKey
+	newKey.AccessKey = *keyDetails.AccessKeyId
+	newKey.SecretKey = *keyDetails.SecretAccessKey
+	newKey.SessionToken = ""
 
 	fmt.Println("[-] Deleting old access key : " + keyToDelete)
 
@@ -148,21 +139,40 @@ func rotateProfile(profile string) {
 	helpers.DumpDictToCredFile(cwd, credFileData)
 }
 
-func rotateWithMFA(profile string, cwd string) {
-	authMFA.AuthMFA(profile)
-	RotateKey("mfa-" + profile)
+func rotateWithMFA(profile string, cwd string) (*iam.CreateAccessKeyOutput, *iam.IAM) {
+	authMFA.AuthMFA(profile, "silent")
+	/*RotateKey("mfa-" + profile)
 	credData := helpers.ReadCredsFile(cwd)
 	delete(credData, profile)
-	credData[profile] = credData["mfa-"+profile]
+	credData[profile] = credData["mfa-"+profile]*/
+	_, cacheCreds := helpers.CheckCache(profile)
+	mysession, err := session.NewSession(&aws.Config{
+		Region:      aws.String("us-east-1"),
+		Credentials: credentials.NewStaticCredentials(cacheCreds.AccessKey, cacheCreds.SecretKey, cacheCreds.SessionToken),
+	})
 
-	key := credData[profile]
+	// Getting caller identity
+	stsClient := sts.New(mysession)
+	result, err := stsClient.GetCallerIdentity(&sts.GetCallerIdentityInput{})
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// Creating new access key
+	iamClient := iam.New(mysession)
+	resultIam, err := iamClient.CreateAccessKey(&iam.CreateAccessKeyInput{
+		UserName: aws.String((*result.Arn)[31:]),
+	})
+
+	/*key := credData[profile]
 	key.SessionToken = ""
 	credData[profile] = key
 
 	fmt.Println("[+] Deleting profile : mfa-" + profile)
 	delete(credData, "mfa-"+profile)
 	fmt.Println("\n[+] Successfully rotated MFA creds for : " + profile + "\n")
-	helpers.DumpDictToCredFile(cwd, credData)
+	helpers.DumpDictToCredFile(cwd, credData)*/
+	return resultIam, iamClient
 }
 
 func rotateAll() {
