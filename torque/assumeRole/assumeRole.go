@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"bufio"
+	"fmt"
 	"os"
 	"strings"
 	"torque/helpers"
@@ -29,11 +29,11 @@ func main() {
 }
 
 func readAWSConfig(profile string) {
-	iniReader,err := ini.Load(helpers.GetAWSConfigFileLocation())
+	iniReader, err := ini.Load(helpers.GetAWSConfigFileLocation())
 	if err != nil {
 		fmt.Println(err)
 	}
-	fileData,err := iniReader.GetSection("profile "+profile)
+	fileData, err := iniReader.GetSection("profile " + profile)
 	if err != nil {
 		fmt.Println(err)
 	}
