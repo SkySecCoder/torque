@@ -38,12 +38,6 @@ func AuthMFA(profile string, mode string) {
 		return
 	}
 
-	// Asking user for their MFA Token
-	fmt.Print("[+] Please enter you MFA token code : ")
-	reader := bufio.NewReader(os.Stdin)
-	mfaToken, _ := reader.ReadString('\n')
-	//fmt.Println(mfaToken)
-
 	credFileData := map[string]CredDict{}
 
 	// Checking if profile even exists
@@ -62,6 +56,12 @@ func AuthMFA(profile string, mode string) {
 		fmt.Println(err)
 		fmt.Println()
 	}
+
+	// Asking user for their MFA Token
+	fmt.Print("[+] Please enter you MFA token code : ")
+	reader := bufio.NewReader(os.Stdin)
+	mfaToken, _ := reader.ReadString('\n')
+	//fmt.Println(mfaToken)
 
 	// Creating Session
 	mysession, err := session.NewSession(&aws.Config{
