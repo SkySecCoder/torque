@@ -1,7 +1,6 @@
-package main
+package assumeRole
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"strings"
@@ -17,14 +16,7 @@ import (
 	"os/user"
 )
 
-func main() {
-	fmt.Printf("Profile you want to assume : ")
-	input := bufio.NewReader(os.Stdin)
-	profile, err := input.ReadString('\n')
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+func AssumeRole(profile string) {
 	profile = strings.ReplaceAll(profile, "\n", "")
 	config := readAWSConfig(profile)
 	
