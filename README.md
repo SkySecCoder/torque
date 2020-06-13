@@ -22,7 +22,7 @@ Used to manage AWS access keys on local system.
 	auth [PROFILE_NAME],		auths mfa for [PROFILE_NAME]
 ```
 
-In order to assume a role via torque you need to specify credentials and configuration in files such as the shared configuration file (~/.aws/config) and the shared credentials file (~/.aws/credentials) like so :
+In order to assume a role via torque you need to specify credentials and configuration in files such as the shared configuration file (~/.aws/config) and the shared credentials file (`~/.aws/credentials`) like so :
 ```
 [profile assume_role_profile]
 role_arn = arn:aws:iam::<account_number>:role/<role_name>
