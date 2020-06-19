@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"strings"
+	"torque/assumeRole"
 	"torque/authMFA"
 	"torque/customTypes"
 	"torque/keyRotation"
@@ -22,6 +23,8 @@ func main() {
 		authMFA.AuthMFA(progArgs[2], "")
 	} else if os.Args[1] == "rotate" && len(os.Args) == 3 {
 		keyRotation.RotateKey(progArgs[2])
+	} else if os.Args[1] == "assume" && len(os.Args) == 3 {
+		assumeRole.AssumeRole(progArgs[2])
 	} else {
 		programHelp.ProgramHelp(programName)
 	}
