@@ -92,7 +92,7 @@ func rotateProfile(profile string) {
 	if err != nil {
 		fmt.Println("[-] Failed in creating new access key")
 		fmt.Println()
-		if strings.Contains(err.Error(), "explicit deny\n	status code: 403") {
+		if strings.Contains(err.Error(), "status code: 403") {
 			fmt.Print("[-] It appears you have an explicit deny for this operations\n[?] Does " + profile + " require MFA authentication(y/n) : ")
 			reader := bufio.NewReader(os.Stdin)
 			option, _ := reader.ReadString('\n')
